@@ -4,6 +4,7 @@ import com.free.tbschedule.demo.task.dto.User;
 import com.free.tbschedule.demo.task.service.UserService;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
@@ -12,8 +13,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<User> getUsers(int mod, List<Integer> remainder, int topNum) {
+        int num = new Random().nextInt(10);
+        System.out.println("Random-num:"+num);
         return UserDao.getAllUsers().stream()
-            .filter(user -> remainder.contains(user.getId() % mod) && user.getStatus() == 0)
+            .filter(user -> remainder.contains(user.getId() % mod) && user.getStatus() == 0 && num % 3==0)
             .limit(topNum)
             .collect(Collectors.toList());
     }
@@ -23,8 +26,7 @@ public class UserServiceImpl implements UserService {
         List<User> result = UserDao.getAllUsers().stream()
             .filter(user -> user.getId() == task.getId())
             .collect(Collectors.toList());
-
-        result.forEach(user -> user.setStatus(1));
+        //result.forEach(user -> user.setStatus(1));
         return result.size();
     }
 

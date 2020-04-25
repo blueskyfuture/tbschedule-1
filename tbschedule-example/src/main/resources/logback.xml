@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <configuration debug="false">
-    <property name="pattern" value="%d{yyyy-MM-dd HH:mm:ss} %level %logger{36} - %msg%n"/>
+    <property name="pattern" value="[%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %c:%L] [%thread] %-5level %msg%n"/>
     <property name="logdir" value="log"/>
     <property name="layoutClass" value="ch.qos.logback.classic.PatternLayout"/>
     <property name="append" value="true"/>
@@ -11,6 +11,26 @@
         <layout class="${layoutClass}">
             <pattern>${pattern}</pattern>
         </layout>
+    </appender>
+
+    <appender name="TRACE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${logdir}/TRACE.log</file>
+        <append>${append}</append>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${logdir}/%d{yyyyMMdd}/TRACE.log</fileNamePattern>
+            <maxHistory>${maxHistory}</maxHistory>
+        </rollingPolicy>
+
+        <layout class="${layoutClass}">
+            <pattern>${pattern}</pattern>
+        </layout>
+
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>TRACE</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
     </appender>
 
     <appender name="DEBUG" class="ch.qos.logback.core.rolling.RollingFileAppender">
@@ -99,9 +119,13 @@
     <logger name="com.ibatis.common.jdbc.ScriptRunner" level="DEBUG"/>
     <logger name="com.ibatis.sqlmap.engine.impl.SqlMapClientDelegate" level="DEBUG" />
     <logger name="org.springframework.jdbc.core" level="DEBUG" />
+    <logger name="org.apache.zookeeper.ClientCnxn" level="ALL" />
+    <logger name="com.taobao.pamirs.schedule.zk.ScheduleDataManager4ZK" level="ALL"/>
+    <logger name="com.taobao.pamirs.schedule.taskmanager.TBScheduleManagerStatic" level="ALL" />
 
-    <root level="INFO">
+    <root level="TRACE">
         <appender-ref ref="STDOUT" />
+        <appender-ref ref="TRACE" />
         <appender-ref ref="DEBUG" />
         <appender-ref ref="INFO" />
         <appender-ref ref="WARN" />

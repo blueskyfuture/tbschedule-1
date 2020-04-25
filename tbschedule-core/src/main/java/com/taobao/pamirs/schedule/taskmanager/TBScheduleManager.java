@@ -18,10 +18,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 
 /**
- * 1、任务调度分配器的目标： 让所有的任务不重复，不遗漏的被快速处理。 2、一个Manager只管理一种任务类型的一组工作线程。 3、在一个JVM里面可能存在多个处理相同任务类型的Manager，也可能存在处理不同任务类型的Manager。
- * 4、在不同的JVM里面可以存在处理相同任务的Manager 5、调度的Manager可以动态的随意增加和停止
+ * 1、任务调度分配器的目标： 让所有的任务不重复，不遗漏的被快速处理。
+ * 2、一个Manager只管理一种任务类型的一组工作线程。
+ * 3、在一个JVM里面可能存在多个处理相同任务类型的Manager，也可能存在处理不同任务类型的Manager。
+ * 4、在不同的JVM里面可以存在处理相同任务的Manager
+ * 5、调度的Manager可以动态的随意增加和停止
  * <p>
- * 主要的职责： 1、定时向集中的数据配置中心更新当前调度服务器的心跳状态 2、向数据配置中心获取所有服务器的状态来重新计算任务的分配。这么做的目标是避免集中任务调度中心的单点问题。
+ * 主要的职责：
+ * 1、定时向集中的数据配置中心更新当前调度服务器的心跳状态
+ * 2、向数据配置中心获取所有服务器的状态来重新计算任务的分配。这么做的目标是避免集中任务调度中心的单点问题。
  * 3、在每个批次数据处理完毕后，检查是否有其它处理服务器申请自己把持的任务队列，如果有，则释放给相关处理服务器。
  * <p>
  * 其它： 如果当前服务器在处理当前任务的时候超时，需要清除当前队列，并释放已经把持的任务。并向控制主动中心报警。
@@ -121,10 +126,12 @@ abstract class TBScheduleManager implements IStrategyTask {
         this.currenScheduleServer = ScheduleServer
             .createScheduleServer(this.scheduleCenter, baseTaskType, ownSign, this.taskTypeInfo.getThreadNumber());
         this.currenScheduleServer.setManagerFactoryUUID(this.factory.getUuid());
+        log.info("TBScheduleManager currenScheduleServer:{}",currenScheduleServer.toString());
         scheduleCenter.registerScheduleServer(this.currenScheduleServer);
         this.mBeanName = "pamirs:name=" + "schedule.ServerMananger." + this.currenScheduleServer.getUuid();
-
+        log.info("TBScheduleManager mBeanName:"+mBeanName);
         String heartBeatTask = this.currenScheduleServer.getTaskType() + "-" + this.currentSerialNumber + "-HeartBeat";
+        log.info("TBScheduleManager heartBeatTask:"+heartBeatTask);
         this.heartBeatTimer = new Timer(heartBeatTask);
         this.heartBeatTimer.schedule(new HeartBeatTimerTask(this), new java.util.Date(System.currentTimeMillis() + 500),
             this.taskTypeInfo.getHeartBeatRate());
@@ -209,7 +216,7 @@ abstract class TBScheduleManager implements IStrategyTask {
      */
     public void computerStart() throws Exception {
         // 只有当存在可执行队列后再开始启动队列
-
+        log.info("computerStart begin..."+this.taskTypeInfo.getDealBeanName());
         boolean isRunNow = false;
         if (this.taskTypeInfo.getPermitRunStartTime() == null) {
             isRunNow = true;
@@ -222,6 +229,7 @@ abstract class TBScheduleManager implements IStrategyTask {
             CronExpression cexpStart = new CronExpression(tmpStr);
             Date current = new Date(this.scheduleCenter.getSystemTime());
             Date firstStartTime = cexpStart.getNextValidTimeAfter(current);
+            //重点:触发定时任务，启动任务执行
             this.heartBeatTimer.schedule(
                 new PauseOrResumeScheduleTask(this, this.heartBeatTimer, PauseOrResumeScheduleTask.TYPE_RESUME, tmpStr),
                 firstStartTime);
@@ -239,6 +247,7 @@ abstract class TBScheduleManager implements IStrategyTask {
                         isRunNow = true;
                         firstEndTime = nowEndTime;
                     }
+                    //重点:触发定时任务，启动任务执行
                     this.heartBeatTimer.schedule(
                         new PauseOrResumeScheduleTask(this, this.heartBeatTimer, PauseOrResumeScheduleTask.TYPE_PAUSE,
                             tmpEndStr), firstEndTime);
@@ -250,6 +259,7 @@ abstract class TBScheduleManager implements IStrategyTask {
             }
         }
         if (isRunNow == true) {
+            log.info("开启服务立即启动" + currenScheduleServer.getUuid());
             this.resume("开启服务立即启动");
         }
         this.rewriteScheduleInfo();
@@ -304,6 +314,8 @@ abstract class TBScheduleManager implements IStrategyTask {
      * 处在了可执行的时间区间，恢复运行
      */
     public void resume(String message) throws Exception {
+        log.info("恢复调度--begin:" + this.currenScheduleServer.getUuid()+"  taskTypeInfo:"+taskTypeInfo.toString());
+        log.info("恢复调度:" + this.currenScheduleServer.getUuid()+"  getTaskType:"+this.taskDealBean.getClass().getName());
         if (this.isPauseSchedule == true) {
             if (log.isDebugEnabled()) {
                 log.debug("恢复调度:" + this.currenScheduleServer.getUuid());
@@ -322,6 +334,7 @@ abstract class TBScheduleManager implements IStrategyTask {
             }
             rewriteScheduleInfo();
         }
+        log.info("恢复调度--end:" + this.currenScheduleServer.getUuid()+"  getTaskType:"+this.currenScheduleServer.getTaskType());
     }
 
     /**
@@ -430,6 +443,7 @@ class PauseOrResumeScheduleTask extends java.util.TimerTask {
 
     @Override
     public void run() {
+        log.info("PauseOrResumeScheduleTask -run begin...");
         try {
             Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
             this.cancel();// 取消调度任务
@@ -437,9 +451,11 @@ class PauseOrResumeScheduleTask extends java.util.TimerTask {
             CronExpression cexp = new CronExpression(this.cronTabExpress);
             Date nextTime = cexp.getNextValidTimeAfter(current);
             if (this.type == TYPE_PAUSE) {
+                log.info("PauseOrResumeScheduleTask -run 到达终止时间,pause调度...nextTime:"+nextTime);
                 manager.pause("到达终止时间,pause调度");
                 this.manager.getScheduleServer().setNextRunEndTime(ScheduleUtil.transferDataToString(nextTime));
             } else {
+                log.info("PauseOrResumeScheduleTask -run 到达开始时间,resume调度...nextTime:"+nextTime);
                 manager.resume("到达开始时间,resume调度");
                 this.manager.getScheduleServer().setNextRunStartTime(ScheduleUtil.transferDataToString(nextTime));
             }
@@ -448,6 +464,7 @@ class PauseOrResumeScheduleTask extends java.util.TimerTask {
         } catch (Throwable ex) {
             log.error(ex.getMessage(), ex);
         }
+        log.info("PauseOrResumeScheduleTask -run end...");
     }
 }
 

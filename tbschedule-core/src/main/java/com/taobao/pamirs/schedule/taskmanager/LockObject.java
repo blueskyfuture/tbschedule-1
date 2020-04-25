@@ -1,7 +1,10 @@
 package com.taobao.pamirs.schedule.taskmanager;
 
-class LockObject {
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+class LockObject {
+    private static transient Logger logger = LoggerFactory.getLogger(LockObject.class);
     private int m_threadCount = 0;
     private Object m_waitOnObject = new Object();
 
@@ -43,12 +46,16 @@ class LockObject {
      */
     public boolean realseThreadButNotLast() {
         synchronized (this) {
+            boolean flag = true;
+            logger.info("LockObject realseThreadButNotLast m_threadCount:"+this.m_threadCount);
             if (this.m_threadCount == 1) {
-                return false;
+                flag = false;
             } else {
                 m_threadCount = m_threadCount - 1;
-                return true;
+                flag = true;
             }
+            logger.info("LockObject realseThreadButNotLast m_threadCount:"+this.m_threadCount+",flag:"+flag);
+            return flag;
         }
     }
 

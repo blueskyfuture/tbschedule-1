@@ -65,6 +65,7 @@ class TBScheduleProcessorSleep<T> implements IScheduleProcessor, Runnable {
      */
     public TBScheduleProcessorSleep(TBScheduleManager aManager, IScheduleTaskDeal<T> aTaskDealBean,
         StatisticsInfo aStatisticsInfo) {
+        logger.info("TBScheduleProcessorSleep begin:"+aManager.getTaskTypeInfo().toString());
         this.scheduleManager = aManager;
         this.statisticsInfo = aStatisticsInfo;
         this.taskTypeInfo = this.scheduleManager.getTaskTypeInfo();
@@ -102,11 +103,14 @@ class TBScheduleProcessorSleep<T> implements IScheduleProcessor, Runnable {
         String threadName =
             this.scheduleManager.getScheduleServer().getTaskType() + "-" + this.scheduleManager.getCurrentSerialNumber()
                 + "-exe" + index;
+        logger.info(""+index);
+        logger.info("TBScheduleProcessorSleep startThread index="+index+"=threadName=="+threadName);
         thread.setName(threadName);
         thread.start();
     }
 
     public synchronized Object getScheduleTaskId() {
+        logger.info("getScheduleTaskId:"+this.taskList.size());
         if (this.taskList.size() > 0) {
             // 按正序处理
             return this.taskList.remove(0);
@@ -149,6 +153,7 @@ class TBScheduleProcessorSleep<T> implements IScheduleProcessor, Runnable {
 
     protected int loadScheduleData() {
         try {
+
             // 在每次数据处理完毕后休眠固定的时间
             if (this.taskTypeInfo.getSleepTimeInterval() > 0) {
                 if (logger.isTraceEnabled()) {
@@ -172,9 +177,11 @@ class TBScheduleProcessorSleep<T> implements IScheduleProcessor, Runnable {
                         tmpTaskList.add(taskItemDefine);
                     }
                 }
+                logger.info("loadScheduleData selectTasks begin:"+Thread.currentThread().getName());
                 List<T> tmpList = this.taskDealBean
                     .selectTasks(taskTypeInfo.getTaskParameter(), scheduleManager.getScheduleServer().getOwnSign(),
                         this.scheduleManager.getTaskItemCount(), tmpTaskList, taskTypeInfo.getFetchDataNumber());
+                logger.info("loadScheduleData selectTasks end:"+Thread.currentThread().getName());
                 scheduleManager.getScheduleServer()
                     .setLastFetchDataTime(new Timestamp(scheduleManager.scheduleCenter.getSystemTime()));
                 if (tmpList != null) {
@@ -196,15 +203,30 @@ class TBScheduleProcessorSleep<T> implements IScheduleProcessor, Runnable {
     @Override
     @SuppressWarnings({"rawtypes", "unchecked", "static-access"})
     public void run() {
+        logger.info("TBScheduleProcessorSleep run ..."+Thread.currentThread().getName());
         try {
             long startTime = 0;
             AtomicInteger fetchDataNum = new AtomicInteger(0);
             while (true) {
+                logger.info("first while doing..." + Thread.currentThread().getName() + "：当前运行线程数量:" + this.m_lockObject.count());
+                if (logger.isTraceEnabled()) {
+                    logger.trace("first while doing..." + Thread.currentThread().getName() + "：当前运行线程数量:" + this.m_lockObject.count());
+                }
                 this.m_lockObject.addThread();
                 Object executeTask;
                 while (true) {
+                    /**
+                     * 此循环是循环处理任务
+                     * 例如待处理数据有n条，则循环进行处理
+                     */
+                    logger.info("second while doing..." + Thread.currentThread().getName() + "：当前运行线程数量:" + this.m_lockObject.count());
+                    if (logger.isTraceEnabled()) {
+                        logger.trace("second while doing..." + Thread.currentThread().getName() + "：当前运行线程数量:" + this.m_lockObject.count());
+                    }
                     // 停止队列调度
-                    if (this.isStopSchedule == true) {
+                    //if (this.isStopSchedule == true) {
+                    //fixbug 否则会出现并发死循环
+                    if (this.isStopSchedule == true || (scheduleManager != null && scheduleManager.isStopSchedule)) {//停止队列调度
                         this.m_lockObject.realseThread();
                         // 通知所有的休眠线程
                         this.m_lockObject.notifyOtherThread();
@@ -264,9 +286,14 @@ class TBScheduleProcessorSleep<T> implements IScheduleProcessor, Runnable {
                     logger.trace(Thread.currentThread().getName() + "：当前运行线程数量:" + this.m_lockObject.count());
                 }
                 if (this.m_lockObject.realseThreadButNotLast() == false) {
+                    logger.info("这是最后一个线程，doing...");
+                    if (logger.isTraceEnabled()) {
+                        logger.trace("这是最后一个线程，doing...");
+                    }
                     int size = 0;
                     Thread.sleep(100);
                     startTime = scheduleManager.scheduleCenter.getSystemTime();
+                    logger.trace("执行次数:"+fetchDataNum.intValue()+"，上线次数:"+this.taskTypeInfo.getFetchDataCountEachSchedule(), this.taskTypeInfo.getFetchDataCountEachSchedule());
                     // 如果调度次数达到设置的上限，暂停调度
                     if (fetchDataNum.intValue() >= this.taskTypeInfo.getFetchDataCountEachSchedule()
                             && this.taskTypeInfo.getFetchDataCountEachSchedule() != -1) {
@@ -278,7 +305,7 @@ class TBScheduleProcessorSleep<T> implements IScheduleProcessor, Runnable {
                         this.m_lockObject.realseThread();
                         continue;
                     }
-                    // 装载数据
+                    //重点:装载数据
                     size = this.loadScheduleData();
                     fetchDataNum.addAndGet(1);
                     if (size > 0) {
@@ -304,7 +331,7 @@ class TBScheduleProcessorSleep<T> implements IScheduleProcessor, Runnable {
                     this.m_lockObject.realseThread();
                 } else {// 将当前线程放置到等待队列中。直到有线程装载到了新的任务数据
                     if (logger.isTraceEnabled()) {
-                        logger.trace("不是最后一个线程，sleep");
+                        logger.trace("不是最后一个线程，sleep...当前运行线程数量:" + this.m_lockObject.count());
                     }
                     this.m_lockObject.waitCurrentThread();
                 }

@@ -39,12 +39,14 @@ public class TBScheduleManagerStatic extends TBScheduleManager {
 
     @Override
     public void initial() {
-        new Thread(this.currenScheduleServer.getTaskType() + "-" + this.currentSerialNumber + "-StartProcess") {
+        String name = this.currenScheduleServer.getTaskType() + "-" + this.currentSerialNumber + "-StartProcess";
+        log.info("TBScheduleManagerStatic initial name:{}",name);
+        new Thread(name) {
             @Override
             @SuppressWarnings("static-access")
             public void run() {
                 try {
-                    log.info("开始获取调度任务队列...... of " + currenScheduleServer.getUuid());
+                    log.info("开始获取调度任务队列...... name:{},uuid:{},isRuntimeInfoInitial: "+isRuntimeInfoInitial ,name, currenScheduleServer.getUuid());
                     while (isRuntimeInfoInitial == false) {
                         if (isStopSchedule == true) {
                             log.debug("外部命令终止调度,退出调度队列获取：" + currenScheduleServer.getUuid());
@@ -73,6 +75,7 @@ public class TBScheduleManagerStatic extends TBScheduleManager {
                         Thread.sleep(1000);
                         count = count + 1;
                     }
+                    //TaskItemDefine:(t=0,p=)
                     String tmpStr = "TaskItemDefine:";
                     for (int i = 0; i < currentTaskItemList.size(); i++) {
                         if (i > 0) {
@@ -80,10 +83,12 @@ public class TBScheduleManagerStatic extends TBScheduleManager {
                         }
                         tmpStr = tmpStr + currentTaskItemList.get(i);
                     }
+                    //uuid:sample_task$10.168.130.214$D37343894108427BA9630B1F94A14D74$0000000004
                     log.info("获取到任务处理队列，开始调度：" + tmpStr + "  of  " + currenScheduleServer.getUuid());
 
-                    // 任务总量
+                    //任务总量
                     taskItemCount = scheduleCenter.queryTaskItemCount(currenScheduleServer.getTaskType());
+                    log.info("获取到任务处理队列，TaskTyp：" + currenScheduleServer.getTaskType() + "  taskItemCount:  " + taskItemCount);
                     // 只有在已经获取到任务处理队列后才开始启动任务处理器
                     computerStart();
                 } catch (Exception e) {
@@ -181,7 +186,7 @@ public class TBScheduleManagerStatic extends TBScheduleManager {
         scheduleCenter.clearExpireScheduleServer(this.currenScheduleServer.getTaskType(),
             this.taskTypeInfo.getJudgeDeadInterval());
         List<String> serverList = scheduleCenter.loadScheduleServerNames(this.currenScheduleServer.getTaskType());
-
+        log.info("assignScheduleTask serverList:{}",serverList);
         if (scheduleCenter.isLeader(this.currenScheduleServer.getUuid(), serverList) == false) {
             if (log.isDebugEnabled()) {
                 log.debug(this.currenScheduleServer.getUuid() + ":不是负责任务分配的Leader,直接返回");

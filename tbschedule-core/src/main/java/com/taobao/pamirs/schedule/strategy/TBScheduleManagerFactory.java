@@ -1,5 +1,7 @@
 package com.taobao.pamirs.schedule.strategy;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.taobao.pamirs.schedule.ConsoleManager;
 import com.taobao.pamirs.schedule.IScheduleTaskDeal;
 import com.taobao.pamirs.schedule.ScheduleUtil;
@@ -8,6 +10,8 @@ import com.taobao.pamirs.schedule.taskmanager.TBScheduleManagerStatic;
 import com.taobao.pamirs.schedule.zk.ScheduleDataManager4ZK;
 import com.taobao.pamirs.schedule.zk.ScheduleStrategyDataManager4ZK;
 import com.taobao.pamirs.schedule.zk.ZKManager;
+
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -134,6 +138,7 @@ public class TBScheduleManagerFactory implements ApplicationContextAware {
      * 创建调度服务器
      */
     public IStrategyTask createStrategyTask(ScheduleStrategy strategy) {
+        logger.info("createStrategyTask strategy:{},begin...",strategy.toString());
         IStrategyTask result = null;
         try {
             if (ScheduleStrategy.Kind.Schedule == strategy.getKind()) {
@@ -150,6 +155,7 @@ public class TBScheduleManagerFactory implements ApplicationContextAware {
         } catch (Exception e) {
             logger.error("strategy 获取对应的java or bean 出错,schedule并没有加载该任务,请确认" + strategy.getStrategyName(), e);
         }
+        logger.info("createStrategyTask strategy:{},end...",strategy.toString());
         return result;
     }
 
@@ -186,23 +192,29 @@ public class TBScheduleManagerFactory implements ApplicationContextAware {
     }
 
     public void reRegisterManagerFactory() throws Exception {
+        logger.info("reRegisterManagerFactory--begin...");
         // 重新分配调度器
         List<String> stopList = this.getScheduleStrategyManager().registerManagerFactory(this);
+        logger.info("reRegisterManagerFactory--stopList.size:{}",stopList.size());
         for (String strategyName : stopList) {
             this.stopServer(strategyName);
         }
         this.assignScheduleServer();
         this.reRunScheduleServer();
+        logger.info("reRegisterManagerFactory--end...");
     }
 
     /**
      * 根据策略重新分配调度任务的机器
      */
     public void assignScheduleServer() throws Exception {
-        for (ScheduleStrategyRunntime run : this.scheduleStrategyManager
-            .loadAllScheduleStrategyRunntimeByUUID(this.uuid)) {
+        logger.info("assignScheduleServer--begin...");
+        List<ScheduleStrategyRunntime> scheduleStrategyRunntimes = this.scheduleStrategyManager.loadAllScheduleStrategyRunntimeByUUID(this.uuid);
+        logger.info("assignScheduleServer--scheduleStrategyRunntimes.size:{}",scheduleStrategyRunntimes.size());
+        for (ScheduleStrategyRunntime run : scheduleStrategyRunntimes) {
             List<ScheduleStrategyRunntime> factoryList = this.scheduleStrategyManager
                 .loadAllScheduleStrategyRunntimeByTaskType(run.getStrategyName());
+            logger.info("assignScheduleServer--factoryList.size:{}",factoryList.size());
             if (factoryList.size() == 0 || this.isLeader(this.uuid, factoryList) == false) {
                 continue;
             }
@@ -217,6 +229,7 @@ public class TBScheduleManagerFactory implements ApplicationContextAware {
                     .updateStrategyRunntimeReqestNum(run.getStrategyName(), factory.getUuid(), nums[i]);
             }
         }
+        logger.info("assignScheduleServer--end...");
     }
 
     public boolean isLeader(String uuid, List<ScheduleStrategyRunntime> factoryList) {
@@ -235,13 +248,18 @@ public class TBScheduleManagerFactory implements ApplicationContextAware {
     }
 
     public void reRunScheduleServer() throws Exception {
-        for (ScheduleStrategyRunntime run : this.scheduleStrategyManager
-            .loadAllScheduleStrategyRunntimeByUUID(this.uuid)) {
+        logger.info("reRunScheduleServer begin...");
+        List<ScheduleStrategyRunntime> scheduleStrategyRunntimes = this.scheduleStrategyManager.loadAllScheduleStrategyRunntimeByUUID(this.uuid);
+        logger.info("reRunScheduleServer--scheduleStrategyRunntimes.size:{}",scheduleStrategyRunntimes.size());
+
+        for (ScheduleStrategyRunntime run : scheduleStrategyRunntimes) {
+            logger.info("reRunScheduleServer--scheduleStrategyRunntime:{}",run.toString());
             List<IStrategyTask> list = this.managerMap.get(run.getStrategyName());
             if (list == null) {
                 list = new ArrayList<>();
                 this.managerMap.put(run.getStrategyName(), list);
             }
+            logger.info("reRunScheduleServer--run.getStrategyName:{},list.size:{}",run.getStrategyName(),list.size());
             while (list.size() > run.getRequestNum() && list.size() > 0) {
                 IStrategyTask task = list.remove(list.size() - 1);
                 try {
@@ -260,6 +278,7 @@ public class TBScheduleManagerFactory implements ApplicationContextAware {
                 list.add(result);
             }
         }
+        logger.error("reRunScheduleServer end...");
     }
 
     /**
@@ -439,6 +458,7 @@ class ManagerFactoryTimerTask extends java.util.TimerTask {
 
     @Override
     public void run() {
+        log.info("ManagerFactoryTimerTask-run-begin...");
         try {
             Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
             if (this.factory.zkManager.checkZookeeperState() == false) {
@@ -459,6 +479,7 @@ class ManagerFactoryTimerTask extends java.util.TimerTask {
         } finally {
             factory.timerTaskHeartBeatTS = System.currentTimeMillis();
         }
+        log.info("ManagerFactoryTimerTask-run-end...");
     }
 }
 

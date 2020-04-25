@@ -19,10 +19,10 @@ import com.taobao.pamirs.schedule.zk.ZKTools;
 
 public class ZookeeperTest {
 
-    @BeforeClass
-    public static void setUp() {
-        EmbedTestingServer.start();
-    }
+//    @BeforeClass
+//    public static void setUp() {
+//        EmbedTestingServer.start();
+//    }
 
     @Test
     public void testCloseStatus() throws Exception {

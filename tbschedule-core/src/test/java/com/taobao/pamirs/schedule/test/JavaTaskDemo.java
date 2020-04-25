@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 
 import com.taobao.pamirs.schedule.strategy.IStrategyTask;
 
+import java.util.concurrent.TimeUnit;
+
 public class JavaTaskDemo implements IStrategyTask, Runnable {
     protected static transient Logger log = LoggerFactory.getLogger(JavaTaskDemo.class);
 
@@ -32,6 +34,21 @@ public class JavaTaskDemo implements IStrategyTask, Runnable {
                 e.printStackTrace();
             }
         }
+    }
+
+
+    public static void main(String[] args) {
+        JavaTaskDemo javaTaskDemo = new JavaTaskDemo();
+        javaTaskDemo.initialTaskParameter("strategyName","taskParameter");
+        //线程睡眠指定时间
+        try {
+            TimeUnit.MILLISECONDS.sleep(3000);
+            javaTaskDemo.stop("strategyName");
+            log.info("stop task finish...");
+        }catch (Exception ex){
+            ex.printStackTrace();
+        }
+
     }
 
 }

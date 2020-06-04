@@ -296,6 +296,8 @@ abstract class TBScheduleManager implements IStrategyTask {
      * 超过运行的运行时间，暂时停止调度
      */
     public void pause(String message) throws Exception {
+        log.info(
+                "暂停调度,this.isPauseSchedule:"+ this.isPauseSchedule + this.currenScheduleServer.getUuid() + ":" + this.statisticsInfo.getDealDescription());
         if (this.isPauseSchedule == false) {
             this.isPauseSchedule = true;
             this.pauseMessage = message;

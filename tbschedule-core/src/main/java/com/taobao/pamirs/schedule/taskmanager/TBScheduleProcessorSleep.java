@@ -91,6 +91,7 @@ class TBScheduleProcessorSleep<T> implements IScheduleProcessor, Runnable {
      */
     @Override
     public void stopSchedule() {
+        logger.info("stopSchedule set isStopSchedule = true");
         // 设置停止调度的标志,调度线程发现这个标志，执行完当前任务后，就退出调度
         this.isStopSchedule = true;
         // 清除所有未处理任务,但已经进入处理队列的，需要处理完毕
@@ -223,6 +224,9 @@ class TBScheduleProcessorSleep<T> implements IScheduleProcessor, Runnable {
                     if (logger.isTraceEnabled()) {
                         logger.trace("second while doing..." + Thread.currentThread().getName() + "：当前运行线程数量:" + this.m_lockObject.count());
                     }
+
+                    logger.info("this.isStopSchedule:"+this.isStopSchedule);
+                    logger.info("scheduleManager:" + (scheduleManager != null && scheduleManager.isStopSchedule));
                     // 停止队列调度
                     //if (this.isStopSchedule == true) {
                     //fixbug 否则会出现并发死循环
@@ -293,7 +297,7 @@ class TBScheduleProcessorSleep<T> implements IScheduleProcessor, Runnable {
                     int size = 0;
                     Thread.sleep(100);
                     startTime = scheduleManager.scheduleCenter.getSystemTime();
-                    logger.trace("执行次数:"+fetchDataNum.intValue()+"，上线次数:"+this.taskTypeInfo.getFetchDataCountEachSchedule(), this.taskTypeInfo.getFetchDataCountEachSchedule());
+                    logger.debug("执行次数:"+fetchDataNum.intValue()+"，上线次数:"+this.taskTypeInfo.getFetchDataCountEachSchedule(), this.taskTypeInfo.getFetchDataCountEachSchedule());
                     // 如果调度次数达到设置的上限，暂停调度
                     if (fetchDataNum.intValue() >= this.taskTypeInfo.getFetchDataCountEachSchedule()
                             && this.taskTypeInfo.getFetchDataCountEachSchedule() != -1) {

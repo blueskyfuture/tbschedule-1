@@ -278,7 +278,7 @@ public class TBScheduleManagerFactory implements ApplicationContextAware {
                 list.add(result);
             }
         }
-        logger.error("reRunScheduleServer end...");
+        logger.info("reRunScheduleServer end...");
     }
 
     /**
